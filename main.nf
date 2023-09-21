@@ -120,9 +120,28 @@ augur filter \
 --sequences ${sequences} \
 --metadata ${meta} \
 --exclude ${params.drop_strains} \
---include ${params.keep_strains} \
---output filtered.fasta
+--output filtered.fasta \
+"""
+}
 
+process align {
+
+tag "Aligning sequences to reference sequence, fill gaps with N"
+publishDir "${params.work_dir}/results/", mode: 'copy'
+
+input:
+tuple file(seqs), file(ref)
+
+output:
+file("aligned.fasta")
+
+shell:
+"""
+augur align \
+--sequences ${seqs} \
+--reference-sequence ${ref} \
+--output "aligned.fasta" \
+--fill-gaps
 """
 }
 
@@ -538,7 +557,8 @@ workflow {
   ref_ch = Channel.fromPath(params.ref, checkIfExists:true)
   meta_ch = Channel.fromPath(params.meta, checkIfExists:true)
 
-  filtration(seq_ch.combine(meta_ch)) | percent | replace | clip | dedup | compress | fasttree | resolve
+  filtration(seq_ch.combine(meta_ch))
+  align(filtration.out.combine(ref_ch)) | percent | replace | clip | dedup | compress | fasttree | resolve
   branches(resolve.out.combine(compress.out)) | round | collapse 
   repopulate(collapse.out.combine(dedup.out)) | order
   refine(order.out.combine(percent.out.combine(meta_ch)))
@@ -574,7 +594,7 @@ workflow.onComplete {
         """
         .stripIndent()
 
-    sendMail(to: 'jessica.caleta@bccdc.ca', subject: 'Test email', body: msg)
+    //sendMail(to: 'jessica.caleta@bccdc.ca', subject: 'Test email', body: msg)
 }
 
 /**

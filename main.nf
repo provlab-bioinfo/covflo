@@ -496,6 +496,27 @@ process traits{
   """
 
 }
+
+process tip_frequencies{
+  tag "Estimating frequencies for tips"
+  publishDir "${params.work_dir}/auspice", mode: 'copy'
+
+  input:
+  tuple path(refine_tree), path(refine_bls), path(meta)
+
+  output:
+  path("tip-frequencies.json")
+
+  """
+  augur frequencies \
+      --method kde \
+      --tree ${refine_tree} \
+      --metadata ${meta} \
+      --output tip-frequencies.json
+  """
+}
+
+
 process export {
   tag "Exporting data files for auspice"
   publishDir "${params.work_dir}/auspice", mode: 'copy'
@@ -507,17 +528,17 @@ process export {
   output:
   file("ncov_na.json")
 
-      """
-      augur export v2 \
-          --tree ${refine_tree} \
-          --metadata ${meta} \
+  """
+  augur export v2 \
+      --tree ${refine_tree} \
+      --metadata ${meta} \
       --node-data ${refine_bls} ${traits} ${ancestral_muts} ${translate_muts} \
-          --colors ${params.colors} \
-          --lat-longs ${params.lat_long} \
-          --minify-json \
-          --auspice-config ${params.auspice} \
-          --output ncov_na.json
-      """
+      --colors ${params.colors} \
+      --lat-longs ${params.lat_long} \
+      --minify-json \
+      --auspice-config ${params.auspice} \
+      --output ncov_na.json
+  """
 }
 
 process clusters {
@@ -588,6 +609,7 @@ workflow {
   ancestral(refine.out.combine(filtration.out))
   translate(refine.out.combine(ancestral.out.combine(ref_ch)))
   traits(refine.out.combine(meta_ch))
+  tip_frequencies(refine.out.combine(meta_ch))
   export(meta_ch.combine(refine.out.combine(ancestral.out.combine(translate.out))))
   clusters(refine.out.combine(order.out))
   condense(order.out)

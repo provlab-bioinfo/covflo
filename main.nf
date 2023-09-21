@@ -42,6 +42,7 @@ Optional arguments:
  --divergence_units             Units used to measure divergence in phylogeny refining step [mutations]
  --clock_rate                   Timetree clock rate [0.0008]
  --clock_std_dev                Timetree standard deviation of clock rate [0.0004]
+ --infer_traits                 Infer traits based on tree construction [region country]
  --inference                    Type of inference used in reconstructing ancestral seqs and mutations (Augur) [joint]
  --trans_probs_80               Input pairwise transmission probabilities (cov2clusters) min threshold 0.8 [./config/SARS-CoV-2_0.8_TransProbs.txt]
  --trans_probs_90               Input pairwise transmission probabilities (cov2clusters) min threshold 0.9 [./config/SARS-CoV-2_0.9_TransProbs.txt]
@@ -475,12 +476,32 @@ augur translate \
 """
 }
 
+process traits{
+  tag "Inferring ancestral traits"
+  publishDir "${params.work_dir}/results", mode: 'copy'
+
+  input: 
+  tuple path(meta), tuple file(refine_tree), file(refine_bls)
+
+  output:
+  path{"traits.json"}
+
+  """
+  augur traits \
+      --tree ${refine_tree} \
+      --metadata ${meta} \
+      --columns ${params.infer_traits} \
+      --confidence
+      --output-node-data traits.json \
+  """
+
+}
 process export {
   tag "Exporting data files for auspice"
   publishDir "${params.work_dir}/auspice", mode: 'copy'
 
   input:
-  tuple file(meta), file(refine_tree), file(refine_bls), file(ancestral_muts),\
+  tuple file(meta), file(refine_tree), file(refine_bls), file(traits), file(ancestral_muts),\
   file(translate_muts)
 
   output:
@@ -490,7 +511,7 @@ process export {
       augur export v2 \
           --tree ${refine_tree} \
           --metadata ${meta} \
-          --node-data ${refine_bls} ${ancestral_muts} ${translate_muts} \
+      --node-data ${refine_bls} ${traits} ${ancestral_muts} ${translate_muts} \
           --colors ${params.colors} \
           --lat-longs ${params.lat_long} \
           --minify-json \
@@ -566,6 +587,7 @@ workflow {
   refine(order.out.combine(percent.out.combine(meta_ch)))
   ancestral(refine.out.combine(filtration.out))
   translate(refine.out.combine(ancestral.out.combine(ref_ch)))
+  traits(refine.out.combine(meta_ch))
   export(meta_ch.combine(refine.out.combine(ancestral.out.combine(translate.out))))
   clusters(refine.out.combine(order.out))
   condense(order.out)

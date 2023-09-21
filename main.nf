@@ -141,7 +141,9 @@ augur align \
 --sequences ${seqs} \
 --reference-sequence ${ref} \
 --output "aligned.fasta" \
---fill-gaps
+--fill-gaps \
+--remove-reference \
+--nthreads ${task.cpus}
 """
 }
 

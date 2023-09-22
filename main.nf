@@ -440,7 +440,7 @@ tag "Reconstructing ancestral sequences and mutations"
 publishDir "${params.work_dir}/results/", mode: 'copy'
 
 input:
-tuple file(refine_tree), file(refine_bls), file(filtration_seqs)
+tuple path(refine_tree), path(refine_bls), path(compress_seqs), path(compress_weights)
 
 output:
 path("nt_muts.json")
@@ -448,7 +448,7 @@ path("nt_muts.json")
 """
 augur ancestral \
 --tree ${refine_tree} \
---alignment ${filtration_seqs} \
+--alignment ${compress_seqs} \
 --output-node-data "nt_muts.json" \
 --keep-ambiguous \
 --keep-overhangs \
@@ -481,20 +481,19 @@ process traits{
   publishDir "${params.work_dir}/results", mode: 'copy'
 
   input: 
-  tuple path(meta), tuple file(refine_tree), file(refine_bls)
+  tuple file(refine_tree), file(refine_bls), path(meta)
 
   output:
-  path{"traits.json"}
+  path{"inferred_traits.json"}
 
   """
   augur traits \
       --tree ${refine_tree} \
       --metadata ${meta} \
       --columns ${params.infer_traits} \
-      --confidence
-      --output-node-data traits.json \
+      --confidence \
+      --output-node-data inferred_traits.json
   """
-
 }
 
 process tip_frequencies{
@@ -634,13 +633,14 @@ workflow.onComplete {
         Duration    : ${workflow.duration}
         Success     : ${workflow.success}
         Launch dir  : ${workflow.workDir}
-        Data dir    : ${workflow.params.projectDir}
+        Data dir    : ${workflow.projectDir}
         Covflo vers : ${workflow.manifest.version} 
         Exit status : ${workflow.exitStatus}
         """
         .stripIndent()
 
-    //sendMail(to: 'jessica.caleta@bccdc.ca', subject: 'Test email', body: msg)
+    println(msg)
+    //sendMail(to: 'andrew.lindsay@albertaprecisionlabs.ca', subject: 'Test email', body: msg)
 }
 
 /**

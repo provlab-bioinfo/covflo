@@ -516,6 +516,62 @@ process tip_frequencies{
 }
 
 
+process clusters {
+
+tag "Subsample SARS-CoV-2 genomic clusters at min probs of 0.8 & 0.9"
+publishDir "${params.work_dir}/results", mode: 'copy'
+
+input:
+tuple file(refine_tree), file(refine_bls), file(order_tree)
+
+output:
+path "SARS-CoV-2_0.8_GenomicClusters.txt"
+path "SARS-CoV-2_0.8_ClustersSummary.csv", optional: true 
+path "SARS-CoV-2_0.8_TransProbs.txt"
+path "SARS-CoV-2_0.9_GenomicClusters.txt" 
+path "SARS-CoV-2_0.9_ClustersSummary.csv", optional: true 
+path "SARS-CoV-2_0.9_TransProbs.txt"
+
+script:
+"""
+Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
+"${refine_bls}" \
+"${order_tree}" \
+"${params.trans_probs_80}" \
+"${params.gen_clusts_80}" \
+"0.8" \
+"${params.new_cluster}" \
+
+Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
+"${refine_bls}" \
+"${order_tree}" \
+"${params.trans_probs_90}" \
+"${params.gen_clusts_90}" \
+"0.9" \
+"${params.new_cluster}"
+"""
+}
+
+process condense {
+
+tag "Collapse branches < 0.0000021, convert scale, & find min number of clusters with max edge length = 6"
+publishDir "${params.work_dir}/results", mode: 'copy'
+
+input:
+file(order_tree)
+
+output:
+tuple file("tree_collapse_snp.nwk"), file("tc_cluster.tsv")
+
+
+"""
+collapse-minimum-branch-length-scale-to-snps.py ${order_tree} > tree_collapse_snp.nwk 
+
+TreeCluster.py -i tree_collapse_snp.nwk -o tc_cluster.tsv -t 6 -m max_clade
+
+"""
+}
+
 process export {
   tag "Exporting data files for auspice"
   publishDir "${params.work_dir}/auspice", mode: 'copy'
@@ -540,55 +596,6 @@ process export {
   """
 }
 
-process clusters {
-
-tag "Subsample SARS-CoV-2 genomic clusters at min probs of 0.8 & 0.9"
-publishDir "${params.work_dir}/results", mode: 'copy'
-
-input:
-tuple file(refine_tree), file(refine_bls), file(order_tree)
-
-output:
-tuple file("SARS-CoV-2_0.8_GenomicClusters.txt"), file("SARS-CoV-2_0.8_ClustersSummary.csv"),\
-file("SARS-CoV-2_0.8_TransProbs.txt"), file("SARS-CoV-2_0.9_GenomicClusters.txt"), \
-file("SARS-CoV-2_0.9_ClustersSummary.csv"), file("SARS-CoV-2_0.9_TransProbs.txt")
-
-script:
-"""
-Rscript ${projectDir}/bin/A3_0.8_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
-"${refine_bls}" \
-"${order_tree}" \
-"${params.trans_probs_80}" \
-"${params.gen_clusts_80}"
-
-Rscript ${projectDir}/bin/A3_0.9_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
-"${refine_bls}" \
-"${order_tree}" \
-"${params.trans_probs_90}" \
-"${params.gen_clusts_90}"
-"""
-}
-
-process condense {
-
-tag "Collapse branches < 0.0000021, convert scale, & find min number of clusters with max edge length = 6"
-publishDir "${params.work_dir}/results", mode: 'copy'
-
-input:
-file(order_tree)
-
-output:
-tuple file("tree_collapse_snp.nwk"), file("tc_cluster.tsv")
-
-
-"""
-collapse-minimum-branch-length-scale-to-snps.py ${order_tree} > tree_collapse_snp.nwk 
-
-TreeCluster.py -i tree_collapse_snp.nwk -o tc_cluster.tsv -t 6 -m max_clade
-
-"""
-}
-
 /**
 ---------------------------------------------------------------------------------
 workflow
@@ -604,14 +611,15 @@ workflow {
   align(filtration.out.combine(ref_ch)) | percent | replace | clip | dedup | compress | fasttree | resolve
   branches(resolve.out.combine(compress.out)) | round | collapse 
   repopulate(collapse.out.combine(dedup.out)) | order
+  condense(order.out)
   refine(order.out.combine(percent.out.combine(meta_ch)))
-  ancestral(refine.out.combine(filtration.out))
+  ancestral(refine.out.combine(compress.out))
   translate(refine.out.combine(ancestral.out.combine(ref_ch)))
   traits(refine.out.combine(meta_ch))
   tip_frequencies(refine.out.combine(meta_ch))
-  export(meta_ch.combine(refine.out.combine(ancestral.out.combine(translate.out))))
   clusters(refine.out.combine(order.out))
-  condense(order.out)
+  export(meta_ch.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
+
 }
 
 /**

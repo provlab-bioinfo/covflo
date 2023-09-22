@@ -525,12 +525,12 @@ input:
 tuple file(refine_tree), file(refine_bls), file(order_tree)
 
 output:
-path "SARS-CoV-2_0.8_GenomicClusters.txt"
-path "SARS-CoV-2_0.8_ClustersSummary.csv", optional: true 
-path "SARS-CoV-2_0.8_TransProbs.txt"
-path "SARS-CoV-2_0.9_GenomicClusters.txt" 
-path "SARS-CoV-2_0.9_ClustersSummary.csv", optional: true 
-path "SARS-CoV-2_0.9_TransProbs.txt"
+path "SARS-CoV-2_0.8_GenomicClusters.tsv", emit: genomicClusters_08
+path "SARS-CoV-2_0.8_ClustersSummary.tsv", optional: true 
+path "SARS-CoV-2_0.8_TransProbs.tsv"
+path "SARS-CoV-2_0.9_GenomicClusters.tsv", emit: genomicClusters_09
+path "SARS-CoV-2_0.9_ClustersSummary.tsv", optional: true 
+path "SARS-CoV-2_0.9_TransProbs.tsv"
 
 script:
 """
@@ -561,7 +561,8 @@ input:
 file(order_tree)
 
 output:
-tuple file("tree_collapse_snp.nwk"), file("tc_cluster.tsv")
+path("tree_collapse_snp.nwk") 
+path("tc_cluster.tsv"), emit: tc_cluster
 
 
 """
@@ -570,6 +571,21 @@ collapse-minimum-branch-length-scale-to-snps.py ${order_tree} > tree_collapse_sn
 TreeCluster.py -i tree_collapse_snp.nwk -o tc_cluster.tsv -t 6 -m max_clade
 
 """
+}
+
+process aggregate {
+  tag "Add cluster data to metadata"
+  publishDir "${params.work_dir}/results", mode: 'copy'
+
+  input:
+  tuple path(meta), path(condense_cluster), path(genomicClusters_08), path(genomicClusters_09)
+
+  output:
+  path("metadataCluster.tsv")
+
+  """
+  metadataCluster.py ${meta} ${condense_cluster} ${genomicClusters_08} ${genomicClusters_09}
+  """
 }
 
 process export {
@@ -618,7 +634,8 @@ workflow {
   traits(refine.out.combine(meta_ch))
   tip_frequencies(refine.out.combine(meta_ch))
   clusters(refine.out.combine(order.out))
-  export(meta_ch.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
+  aggregate(meta_ch.combine(condense.out.tc_cluster.combine(clusters.out.genomicClusters_08.combine(clusters.out.genomicClusters_09))))
+  export(aggregate.out.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
 
 }
 

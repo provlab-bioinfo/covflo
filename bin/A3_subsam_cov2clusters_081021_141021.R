@@ -168,7 +168,7 @@ cov2clusters<-function(treeName=input_tree,metafile=NA, contactData=FALSE,contac
       }
     }
     if (returnTransProbs){
-      write.table(transmat,paste0(outfile,"_",probThreshold[threshold],"_TransProbs",".txt"),quote = F,sep = "\t",row.names = F)
+      write.table(transmat,paste0(outfile,"_",probThreshold[threshold],"_TransProbs",".tsv"),quote = F,sep = "\t",row.names = F)
     }
   
   # Cluster using defined thresholds 
@@ -241,17 +241,17 @@ cov2clusters<-function(treeName=input_tree,metafile=NA, contactData=FALSE,contac
           clustersDF$ClusterName[clust]<-clustername
         }
       }
-      write.csv(clustersDF,paste0(outfile,"_",probThreshold[threshold],"_ClustersSummary",".csv"),row.names = F)# cluster summary output
+      write.table(clustersDF,paste0(outfile,"_",probThreshold[threshold],"_ClustersSummary",".tsv"),sep = "\t",row.names = F)# cluster summary output
     }
     
     # Output file 
     cluster_results<-cluster_results[order(cluster_results[,2]),]
     row.names(cluster_results)<-NULL
-    colnames(cluster_results)<-c("SampleID",paste0("Cluster.No_",probThreshold[threshold]),paste0("pastCluster.No_",probThreshold[threshold]))
+    colnames(cluster_results)<-c("strain",paste0("C2C_Cluster_",probThreshold[threshold]),paste0("C2C_pastCluster_",probThreshold[threshold]))
     if (!newClustering){
-      pastnoclust<-cbind(as.character(pastClusters[which(!as.character(pastClusters$SampleID) %in% 
+      pastnoclust<-cbind(as.character(pastClusters[which(!as.character(pastClusters$strain) %in% 
                                                            cluster_results[,1]),1]),"-1",
-                         as.character(pastClusters[which(!as.character(pastClusters$SampleID) %in% 
+                         as.character(pastClusters[which(!as.character(pastClusters$strain) %in% 
                                                            cluster_results[,1]),2]))
       if (ncol(pastnoclust)==3){
         cluster_results<-rbind(as.matrix(cluster_results),pastnoclust)
@@ -261,7 +261,7 @@ cov2clusters<-function(treeName=input_tree,metafile=NA, contactData=FALSE,contac
     if (ncol(noclust)==3){
       cluster_results<-rbind(as.matrix(cluster_results),noclust)
     }
-    write.table(cluster_results,paste0(outfile,"_",probThreshold[threshold],"_GenomicClusters",".txt"),row.names = F,sep = "\t",quote = F)
+    write.table(cluster_results,paste0(outfile,"_",probThreshold[threshold],"_GenomicClusters",".tsv"),row.names = F,sep = "\t",quote = F)
   }
 }
 

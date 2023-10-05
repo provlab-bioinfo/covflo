@@ -612,6 +612,21 @@ process export {
   """
 }
 
+process clean {
+  tag "Remove Nextflow work directories"
+
+  input:
+  tuple path(json), path(tip_frequencies)
+
+  """
+  rm -rfv ${params.work_dir}work
+  rm -rfv ${params.work_dir}.nextflow
+  """
+
+  // shell:
+  //     "nextflow clean -f -k"
+}
+
 /**
 ---------------------------------------------------------------------------------
 workflow
@@ -636,7 +651,7 @@ workflow {
   clusters(refine.out.combine(order.out))
   aggregate(meta_ch.combine(condense.out.tc_cluster.combine(clusters.out.genomicClusters_08.combine(clusters.out.genomicClusters_09))))
   export(aggregate.out.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
-
+  clean(export.out.combine(tip_frequencies.out))
 }
 
 /**
@@ -667,12 +682,3 @@ workflow.onComplete {
     println(msg)
     //sendMail(to: 'andrew.lindsay@albertaprecisionlabs.ca', subject: 'Test email', body: msg)
 }
-
-/**
-
-process clean {
-  tag "Removing Nextflow work directory?"
-    shell:
-        "rm -rfv work"
-}
-*/

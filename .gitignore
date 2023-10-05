@@ -2,7 +2,7 @@ data/*
 auspice/*
 results/*
 work/*
-report/*
+reports/*
 
 .idea/**
 .gradle

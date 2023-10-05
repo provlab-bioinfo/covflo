@@ -611,7 +611,7 @@ if __name__ == "__main__":
             clusters = METHODS[args.method.lower()](tree,args.threshold,args.support)
         else:
             clusters = THRESHOLDFREE[args.threshold_free](METHODS[args.method.lower()],tree,args.threshold,args.support)
-        outfile.write('SequenceName\tClusterNumber\n')
+        outfile.write('strain\tTC_Cluster\n')
         cluster_num = 1
         for cluster in clusters:
             if len(cluster) == 1:

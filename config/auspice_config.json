@@ -1,0 +1,97 @@
+{
+  "title": "AHS Nextstrain build for July-2021 to Apr-2023",
+  "maintainers": [
+    {"name": "Andrew Lindsay", "url": "mailto:andrew.lindsay@albertaprecisionlabs.com"},
+    {"name": "Stefan Gavriliuc", "url": "mailto:stefan.gavriliuc@albertaprecisionlabs.com"}
+  ],
+  "build_url": "https://github.com/provlab-bioinfo/nextstrain",
+  "colorings": [
+    {
+      "key": "gt",
+      "title": "Genotype",
+      "type": "categorical"
+    },
+    {
+      "key": "num_date",
+      "title": "Sequencing Date",
+      "type": "continuous"
+    },    
+    {
+      "key": "Collect Date",
+      "title": "Collection Date",
+      "type": "continuous"
+    },    
+    {
+      "key": "Turnaround Time",
+      "title": "Turnaround Time",
+      "type": "continuous"
+    },
+    {
+      "key": "Sequencing Lab",
+      "title": "Sequencing Lab",
+      "type": "categorical"
+    },
+    {
+      "key": "Age Group",
+      "title": "Age Group",
+      "type": "categorical"
+    },
+    {
+      "key": "Gender",
+      "title": "Gender",
+      "type": "categorical"
+    },
+    {
+      "key": "Scorpio Clade",
+      "title": "Scorpio Clade",
+      "type": "categorical"
+    },
+    {
+      "key": "Nextstrain Clade",
+      "title": "Nextstrain Clade",
+      "type": "categorical"
+    },
+    {
+      "key": "Total DNA Mutations",
+      "title": "Total DNA Mutations",
+      "type": "categorical"
+    },
+    {
+      "key": "Total AA Mutations",
+      "title": "Total AA Mutations",
+      "type": "categorical"
+    },
+    {
+      "key": "TC_Cluster",
+      "title": "TC Cluster",
+      "type": "categorical"
+    },    
+    {
+      "key": "C2C_Cluster_0.8",
+      "title": "C2C Cluster 0.8",
+      "type": "categorical"
+    },    
+    {
+      "key": "C2C_Cluster_0.9",
+      "title": "C2C Cluster 0.9",
+      "type": "categorical"
+    }
+  ],
+  "geo_resolutions": [
+    "Regional.Health.Authority",
+	  "Province"
+  ],
+  "panels": [
+     "tree",
+     "map",
+     "entropy",
+     "frequencies"
+  ],
+  "display_defaults": {
+    "map_triplicate": true
+  },
+  "filters": [
+    "Regional.Health.Authority",
+	  "Province"
+  ]
+}

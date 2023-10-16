@@ -24,11 +24,11 @@ phylogenies using tools like FastTree, Augur bioinformatic toolkit, Goalign, cov
 
 Run covflo pipeline:
 ```bash
-nextflow run j3551ca/covflo -profile conda --conda_cache /path/to/caches --dir /home/user/sarscov2/input_data -r main
+nextflow run provlab-bioinfo/covflo -profile conda --conda_cache /path/to/caches --dir /path/to/input_data/ -r main
 ```
 For details on available arguments, enter:
 ```bash
-nextflow run j3551ca/covflo -r main --help
+nextflow run provlab-bioinfo/covflo -r main --help
 ```
 
 ## Dependencies
@@ -59,13 +59,13 @@ accesible to compute nodes by adding ```--conda_cache /path/to/new/location/```.
 
 To copy the program into a directory of your choice, from desired directory run:
 ```bash
-git clone https://github.com/j3551ca/covflo.git
+git clone https://github.com/provlab-bioinfo/covflo.git
 cd covflo
-nextflow run main.nf -profile conda --dir /home/user/sarscov2/input_data/
+nextflow run main.nf -profile conda --dir /path/to/input_data/
 ```
 or run directly from Github using:
 ```bash
-nextflow run j3551ca/covflo -profile conda --dir /home/user/sarscov2/input_data
+nextflow run provlab-bioinfo/covflo -profile conda --dir /path/to/input_data/
 ```
 
 ## Input

@@ -116,6 +116,9 @@ augur filter \
 --metadata ${meta} \
 --exclude ${params.drop_strains} \
 --output filtered.fasta \
+--group-by ${params.group_by} \
+--sequences-per-group ${params.sequences_per_group} \
+--min-date ${params.min_date} \
 """
 }
 

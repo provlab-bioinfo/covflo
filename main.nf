@@ -15,6 +15,7 @@ nextflow run main.nf -profile conda [OPTIONS]
 
 Mandatory arguments:
  --dir                          User's directory that contains input 'config' & 'data' folders.
+ --dataset                      The name of the output dataset for Auspice [ncov]
 
 Optional arguments:
  --seqs                         Multi-fasta file containing consensus sequences of interest [./data/sequences.fasta]
@@ -27,6 +28,9 @@ Optional arguments:
  --lat_long                     Sample latitudes and longitudes [./config/lat_longs.csv]
  --auspice                      Specifications for visualization in auspice (ex. title) [./config/auspice_config.json]
  --n_cutoff                     Maximum allowable percentage of N in a seq [0.15]
+ --min_date                     Earliest date of sample [2020]
+ --group_by                     Group filtering options [country year month]
+ --sequences_per_group          Maximum sequences per group in 'group_by' [64]
  --clip_option                  Clipkit algorithm to use [kpic-smart-gap]
  --bl_min                       Minimum branch length for RAxML [0.0000000001]
  --precision                    Precision of rounding for branch length [6]
@@ -147,7 +151,7 @@ process align {
 
 process percent {
 
-  tag "Remove seqs with N > cutoff using Goalign"
+  tag "Remove seqs with N > ${params.n_cutoff} using Goalign"
   publishDir "${params.work_dir}/results/", mode: 'copy'
 
   input:
@@ -292,7 +296,7 @@ process resolve {
 
 process branches {
 
-  tag "Rescale branch lengths; model GTR+I+R; min branch length 0.0000000001 using RAxML"
+  tag "Rescale branch lengths; model GTR+I+R; min branch length ${params.bl_min} using RAxML"
   publishDir "${params.work_dir}/results/", mode: 'copy'
 
   input:
@@ -317,7 +321,7 @@ process branches {
 
 process round {
 
-  tag "Modify branch lengths; precisions = 6 using Gotree"
+  tag "Modify branch lengths; precisions = ${params.precision} using Gotree"
   publishDir "${params.work_dir}/results/", mode: 'copy'
 
   input:
@@ -338,7 +342,7 @@ process round {
 
 process collapse {
 
-  tag "Collapse branches of length 0 using Gotree"
+  tag "Collapse branches of length ${params.length} using Gotree"
   publishDir "${params.work_dir}/results/", mode: 'copy'
 
   input:
@@ -499,14 +503,14 @@ process tip_frequencies{
   tuple path(refine_tree), path(refine_bls), path(meta)
 
   output:
-  path("tip-frequencies.json")
+  path("${params.dataset}_tip-frequencies.json")
 
   """
   augur frequencies \
       --method kde \
       --tree ${refine_tree} \
       --metadata ${meta} \
-      --output tip-frequencies.json
+      --output ${params.dataset}_tip-frequencies.json
   """
 }
 
@@ -591,7 +595,7 @@ process export {
   file(translate_muts)
 
   output:
-  file("ncov_na.json")
+  file("${params.dataset}.json")
 
   """
   augur export v2 \
@@ -602,7 +606,7 @@ process export {
       --lat-longs ${params.lat_long} \
       --minify-json \
       --auspice-config ${params.auspice} \
-      --output ncov_na.json
+      --output ${params.dataset}.json
   """
 }
 

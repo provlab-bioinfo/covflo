@@ -216,7 +216,8 @@ input:
 file(clip_seqs)
 
 output:
-tuple path("deduped.fasta"), path("names.dedup")
+path("deduped.fasta"), emit: sequences
+path("names.dedup"), emit: names
 
 """
 goalign \
@@ -228,26 +229,26 @@ goalign \
 """
 }
 
-process compress {
+// process compress {
 
-tag "Compress identical sites from alignment using Goalign"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+// tag "Compress identical sites from alignment using Goalign"
+// publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple path(deduped_seqs), path(dedup_names)
+// input:
+// tuple path(deduped_seqs), path(dedup_names)
 
-output:
-tuple path("compressed.fasta"), path("weights")
+// output:
+// tuple path("compressed.fasta"), path("weights")
 
-"""
-goalign \
---auto-detect compress \
--t ${task.cpus} \
--o "compressed.fasta" \
---weight-out "weights" \
--i ${deduped_seqs}
-"""
-}
+// """
+// goalign \
+// --auto-detect compress \
+// -t ${task.cpus} \
+// -o "compressed.fasta" \
+// --weight-out "weights" \
+// -i ${deduped_seqs}
+// """
+// }
 
 process fasttree {
 
@@ -255,7 +256,7 @@ tag "Build fasttree without support & fastest"
 publishDir "${params.work_dir}/results/", mode: 'copy'
 
 input:
-tuple file(compress_seqs), file(compress_weights)
+path(sequences)
 
 output:
 path("fasttree.nwk")
@@ -266,7 +267,7 @@ fasttree \
 -nosupport \
 -fastest \
 -out "fasttree.nwk" \
--nt ${compress_seqs}
+-nt ${sequences}
 """
 }
 
@@ -295,7 +296,7 @@ tag "Rescale branch lengths; model GTR+I+R; min branch length 0.0000000001 using
 publishDir "${params.work_dir}/results/", mode: 'copy'
 
 input:
-tuple file(resolve_tree), file(compress_seqs), file(compress_weights) //from compress process output
+tuple file(tree), file(sequences)
 
 output:
 tuple file("blscaled.raxml.bestTree"), file("*.log"), 
@@ -309,9 +310,8 @@ raxml-ng \
 --prefix blscaled \
 --force perf_threads \
 --model GTR+I+R \
---tree ${resolve_tree} \
---msa ${compress_seqs} \
---site-weights ${compress_weights}
+--tree ${tree} \
+--msa ${sequences} \
 """
 }
 
@@ -362,7 +362,7 @@ tag "Repopulate tree with identical sequences using Gotree"
 publishDir "${params.work_dir}/results/", mode: 'copy'
 
 input:
-tuple file(collapse_tree), path(deduped_seqs), path(dedup_names) //from dedup process output; only need names
+tuple file(collapse_tree), path(dedup_names)
 
 output:
 file("repopulate.nwk")
@@ -437,7 +437,7 @@ tag "Reconstructing ancestral sequences and mutations"
 publishDir "${params.work_dir}/results/", mode: 'copy'
 
 input:
-tuple path(refine_tree), path(refine_bls), path(compress_seqs), path(compress_weights)
+tuple path(refine_tree), path(refine_bls), path(sequences)
 
 output:
 path("nt_muts.json")
@@ -445,10 +445,8 @@ path("nt_muts.json")
 """
 augur ancestral \
 --tree ${refine_tree} \
---alignment ${compress_seqs} \
+--alignment ${sequences} \
 --output-node-data "nt_muts.json" \
---keep-ambiguous \
---keep-overhangs \
 --inference ${params.inference}
 """
 }
@@ -511,7 +509,6 @@ process tip_frequencies{
       --output tip-frequencies.json
   """
 }
-
 
 process clusters {
 
@@ -635,20 +632,35 @@ workflow {
   ref_ch = Channel.fromPath(params.ref, checkIfExists:true)
   meta_ch = Channel.fromPath(params.meta, checkIfExists:true)
 
+  // filtration(seq_ch.combine(meta_ch))
+  // align(filtration.out.combine(ref_ch)) | percent | replace | clip | dedup | compress | fasttree | resolve
+  // branches(resolve.out.combine(compress.out)) | round | collapse 
+  // repopulate(collapse.out.combine(dedup.out)) | order
+  // condense(order.out)
+  // refine(order.out.combine(percent.out.combine(meta_ch)))
+  // ancestral(refine.out.combine(compress.out))
+  // translate(refine.out.combine(ancestral.out.combine(ref_ch)))
+  // traits(refine.out.combine(meta_ch))
+  // tip_frequencies(refine.out.combine(meta_ch))
+  // clusters(refine.out.combine(order.out))
+  // aggregate(meta_ch.combine(condense.out.tc_cluster.combine(clusters.out.genomicClusters_08.combine(clusters.out.genomicClusters_09))))
+  // export(aggregate.out.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
+
   filtration(seq_ch.combine(meta_ch))
-  align(filtration.out.combine(ref_ch)) | percent | replace | clip | dedup | compress | fasttree | resolve
-  branches(resolve.out.combine(compress.out)) | round | collapse 
-  repopulate(collapse.out.combine(dedup.out)) | order
+  align(filtration.out.combine(ref_ch)) | percent | replace | dedup
+  fasttree(dedup.out.sequences) | resolve
+  branches(resolve.out.combine(dedup.out.sequences)) | round | collapse 
+  repopulate(collapse.out.combine(dedup.out.names)) | order
   condense(order.out)
   refine(order.out.combine(percent.out.combine(meta_ch)))
-  ancestral(refine.out.combine(compress.out))
+  ancestral(refine.out.combine(dedup.out.sequences))
   translate(refine.out.combine(ancestral.out.combine(ref_ch)))
   traits(refine.out.combine(meta_ch))
   tip_frequencies(refine.out.combine(meta_ch))
   clusters(refine.out.combine(order.out))
   aggregate(meta_ch.combine(condense.out.tc_cluster.combine(clusters.out.genomicClusters_08.combine(clusters.out.genomicClusters_09))))
   export(aggregate.out.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
-  clean(export.out.combine(tip_frequencies.out))
+  //clean(export.out.combine(tip_frequencies.out))
 }
 
 /**

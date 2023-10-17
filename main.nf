@@ -101,374 +101,374 @@ process definition
 */
 process filtration {
 
-tag "Filtering to exclude strains"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Filtering to exclude strains"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(sequences), file(meta)
+  input:
+  tuple file(sequences), file(meta)
 
-output:
-path("filtered.fasta")
+  output:
+  path("filtered.fasta")
 
-"""
-augur filter \
---sequences ${sequences} \
---metadata ${meta} \
---exclude ${params.drop_strains} \
---output filtered.fasta \
---group-by ${params.group_by} \
---sequences-per-group ${params.sequences_per_group} \
---min-date ${params.min_date} \
-"""
+  """
+  augur filter \
+  --sequences ${sequences} \
+  --metadata ${meta} \
+  --exclude ${params.drop_strains} \
+  --output filtered.fasta \
+  --group-by ${params.group_by} \
+  --sequences-per-group ${params.sequences_per_group} \
+  --min-date ${params.min_date} \
+  """
 }
 
 process align {
 
-tag "Aligning sequences to reference sequence, fill gaps with N"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Aligning sequences to reference sequence, fill gaps with N"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(seqs), file(ref)
+  input:
+  tuple file(seqs), file(ref)
 
-output:
-file("aligned.fasta")
+  output:
+  file("aligned.fasta")
 
-shell:
-"""
-augur align \
---sequences ${seqs} \
---reference-sequence ${ref} \
---output "aligned.fasta" \
---fill-gaps \
---remove-reference \
---nthreads ${task.cpus}
-"""
+  shell:
+  """
+  augur align \
+  --sequences ${seqs} \
+  --reference-sequence ${ref} \
+  --output "aligned.fasta" \
+  --fill-gaps \
+  --remove-reference \
+  --nthreads ${task.cpus}
+  """
 }
 
 process percent {
 
-tag "Remove seqs with N > cutoff using Goalign"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Remove seqs with N > cutoff using Goalign"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(filt_seqs)
+  input:
+  file(filt_seqs)
 
-output:
-file("removedpercent.fasta")
+  output:
+  file("removedpercent.fasta")
 
-"""
-goalign \
---auto-detect clean seqs \
---cutoff ${params.n_cutoff} \
--t ${task.cpus} \
--o "removedpercent.fasta" \
--i ${filt_seqs}
-"""
+  """
+  goalign \
+  --auto-detect clean seqs \
+  --cutoff ${params.n_cutoff} \
+  -t ${task.cpus} \
+  -o "removedpercent.fasta" \
+  -i ${filt_seqs}
+  """
 }
 
 process replace {
 
-tag "replace N sites with -"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "replace N sites with -"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(percent_seqs)
+  input:
+  file(percent_seqs)
 
-output:
-path("replaced.fasta")
+  output:
+  path("replaced.fasta")
 
-"""
-goalign \
---auto-detect replace \
--e -s '[^ACTGactg]' \
--n '-' \
--t ${task.cpus} \
--o "replaced.fasta" \
--i ${percent_seqs}
-"""
+  """
+  goalign \
+  --auto-detect replace \
+  -e -s '[^ACTGactg]' \
+  -n '-' \
+  -t ${task.cpus} \
+  -o "replaced.fasta" \
+  -i ${percent_seqs}
+  """
 }
 
 process clip {
 
-tag "Clip sites that are uninformative"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Clip sites that are uninformative"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-path(replace_seqs)
+  input:
+  path(replace_seqs)
 
-output:
-path("informative.fasta")
+  output:
+  path("informative.fasta")
 
-"""
-clipkit ${replace_seqs} \
--m ${params.clip_option} \
--l \
--o "informative.fasta"
-"""
+  """
+  clipkit ${replace_seqs} \
+  -m ${params.clip_option} \
+  -l \
+  -o "informative.fasta"
+  """
 }
 
 process dedup {
 
-tag "Deduplicate identical sequences using Goalign"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Deduplicate identical sequences using Goalign"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(clip_seqs)
+  input:
+  file(clip_seqs)
 
-output:
-path("deduped.fasta"), emit: sequences
-path("names.dedup"), emit: names
+  output:
+  path("deduped.fasta"), emit: sequences
+  path("names.dedup"), emit: names
 
-"""
-goalign \
---auto-detect dedup \
--l "names.dedup" \
--t ${task.cpus} \
--o "deduped.fasta" \
--i ${clip_seqs}
-"""
+  """
+  goalign \
+  --auto-detect dedup \
+  -l "names.dedup" \
+  -t ${task.cpus} \
+  -o "deduped.fasta" \
+  -i ${clip_seqs}
+  """
 }
 
-// process compress {
+process compress {
 
-// tag "Compress identical sites from alignment using Goalign"
-// publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Compress identical sites from alignment using Goalign"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-// input:
-// tuple path(deduped_seqs), path(dedup_names)
+  input:
+  tuple path(deduped_seqs), path(dedup_names)
 
-// output:
-// tuple path("compressed.fasta"), path("weights")
+  output:
+  tuple path("compressed.fasta"), path("weights")
 
-// """
-// goalign \
-// --auto-detect compress \
-// -t ${task.cpus} \
-// -o "compressed.fasta" \
-// --weight-out "weights" \
-// -i ${deduped_seqs}
-// """
-// }
+  """
+  goalign \
+  --auto-detect compress \
+  -t ${task.cpus} \
+  -o "compressed.fasta" \
+  --weight-out "weights" \
+  -i ${deduped_seqs}
+  """
+}
 
 process fasttree {
 
-tag "Build fasttree without support & fastest"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Build fasttree without support & fastest"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-path(sequences)
+  input:
+  path(sequences)
 
-output:
-path("fasttree.nwk")
+  output:
+  path("fasttree.nwk")
 
-"""
-OMP_NUM_THREADS=${task.cpus} \
-fasttree \
--nosupport \
--fastest \
--out "fasttree.nwk" \
--nt ${sequences}
-"""
+  """
+  OMP_NUM_THREADS=${task.cpus} \
+  fasttree \
+  -nosupport \
+  -fastest \
+  -out "fasttree.nwk" \
+  -nt ${sequences}
+  """
 }
 
 process resolve {
 
-tag "Resolve multifurcations in fasttree"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Resolve multifurcations in fasttree"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(fasttree_tree)
+  input:
+  file(fasttree_tree)
 
-output:
-file("resolvedtree.nwk")
+  output:
+  file("resolvedtree.nwk")
 
-"""
-gotree resolve \
--t ${task.cpus} \
--i ${fasttree_tree} \
--o "resolvedtree.nwk"
-"""
+  """
+  gotree resolve \
+  -t ${task.cpus} \
+  -i ${fasttree_tree} \
+  -o "resolvedtree.nwk"
+  """
 }
 
 process branches {
 
-tag "Rescale branch lengths; model GTR+I+R; min branch length 0.0000000001 using RAxML"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Rescale branch lengths; model GTR+I+R; min branch length 0.0000000001 using RAxML"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(tree), file(sequences)
+  input:
+  tuple file(tree), file(sequences)
 
-output:
-tuple file("blscaled.raxml.bestTree"), file("*.log"), 
-file("*.bestModel"), file("*.startTree"), file("*.rba")
+  output:
+  tuple file("blscaled.raxml.bestTree"), file("*.log"), 
+  file("*.bestModel"), file("*.startTree"), file("*.rba")
 
-"""
-raxml-ng \
---evaluate \
---blmin ${params.bl_min} \
---threads ${task.cpus} \
---prefix blscaled \
---force perf_threads \
---model GTR+I+R \
---tree ${tree} \
---msa ${sequences} \
-"""
+  """
+  raxml-ng \
+  --evaluate \
+  --blmin ${params.bl_min} \
+  --threads ${task.cpus} \
+  --prefix blscaled \
+  --force perf_threads \
+  --model GTR+I+R \
+  --tree ${tree} \
+  --msa ${sequences} \
+  """
 }
 
 process round {
 
-tag "Modify branch lengths; precisions = 6 using Gotree"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Modify branch lengths; precisions = 6 using Gotree"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(branches_tree), file(branches_log), file(branches_model),
-file(branches_start), file(branches_rba)
+  input:
+  tuple file(branches_tree), file(branches_log), file(branches_model),
+  file(branches_start), file(branches_rba)
 
-output:
-file("brlen_round.nwk")
+  output:
+  file("brlen_round.nwk")
 
-"""
-gotree brlen round \
--p ${params.precision} \
--t ${task.cpus} \
--i ${branches_tree} \
--o "brlen_round.nwk"
-"""
+  """
+  gotree brlen round \
+  -p ${params.precision} \
+  -t ${task.cpus} \
+  -i ${branches_tree} \
+  -o "brlen_round.nwk"
+  """
 }
 
 process collapse {
 
-tag "Collapse branches of length 0 using Gotree"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Collapse branches of length 0 using Gotree"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(round_tree)
+  input:
+  file(round_tree)
 
-output:
-file("collapse_length.nwk")
+  output:
+  file("collapse_length.nwk")
 
-"""
-gotree collapse length \
--l ${params.length} \
--t ${task.cpus} \
--i ${round_tree} \
--o "collapse_length.nwk"
-"""
+  """
+  gotree collapse length \
+  -l ${params.length} \
+  -t ${task.cpus} \
+  -i ${round_tree} \
+  -o "collapse_length.nwk"
+  """
 }
 
 process repopulate {
 
-tag "Repopulate tree with identical sequences using Gotree"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Repopulate tree with identical sequences using Gotree"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(collapse_tree), path(dedup_names)
+  input:
+  tuple file(collapse_tree), path(dedup_names)
 
-output:
-file("repopulate.nwk")
+  output:
+  file("repopulate.nwk")
 
-"""
-gotree repopulate \
--t ${task.cpus} \
--g ${dedup_names} \
--i ${collapse_tree} \
--o "repopulate.nwk"
-"""
+  """
+  gotree repopulate \
+  -t ${task.cpus} \
+  -g ${dedup_names} \
+  -i ${collapse_tree} \
+  -o "repopulate.nwk"
+  """
 }
 
 process order {
 
-tag "Reorder nodes to ease comparison using Newick Utils"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Reorder nodes to ease comparison using Newick Utils"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-file(repopulate_tree)
+  input:
+  file(repopulate_tree)
 
-output:
-file("order.nwk")
+  output:
+  file("order.nwk")
 
-"""
-nw_order ${repopulate_tree} > order.nwk
-"""
+  """
+  nw_order ${repopulate_tree} > order.nwk
+  """
 }
 
 process refine {
 
-tag "Refining phylogeny & estimating divergence rate using Augur"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Refining phylogeny & estimating divergence rate using Augur"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-/** 
-- estimate timetree
-- use ${params.coalescent} coalescent timescale
-- estimate ${params.date_inference} node dates
-- use {params.clock_rate} clock rate with ${params.clock_std_dev} deviation
-- Does NOT filter tips more than IQDs from clock expectation (pruning)
-- Gives new tree and node data to be used for translate and ancestral rules
-- Roots to Wuhan-Hu-1 MN908947.3
-*/
+  /** 
+  - estimate timetree
+  - use ${params.coalescent} coalescent timescale
+  - estimate ${params.date_inference} node dates
+  - use {params.clock_rate} clock rate with ${params.clock_std_dev} deviation
+  - Does NOT filter tips more than IQDs from clock expectation (pruning)
+  - Gives new tree and node data to be used for translate and ancestral rules
+  - Roots to Wuhan-Hu-1 MN908947.3
+  */
 
-input:
-tuple file(order_tree), file(percent_seqs), file(meta)
+  input:
+  tuple file(order_tree), file(percent_seqs), file(meta)
 
-output:
-tuple file("tree.nwk"), file("branch_lengths.json")
+  output:
+  tuple file("tree.nwk"), file("branch_lengths.json")
 
-"""
-augur refine \
---tree ${order_tree} \
---alignment ${percent_seqs} \
---metadata ${meta} \
---timetree \
---output-tree "tree.nwk" \
---coalescent ${params.coalescent} \
---clock-rate ${params.clock_rate} \
---clock-std-dev ${params.clock_std_dev} \
---date-confidence \
---date-inference ${params.date_inference} \
---output-node-data "branch_lengths.json" \
---divergence-units ${params.divergence_units} \
---root oldest
-"""
+  """
+  augur refine \
+  --tree ${order_tree} \
+  --alignment ${percent_seqs} \
+  --metadata ${meta} \
+  --timetree \
+  --output-tree "tree.nwk" \
+  --coalescent ${params.coalescent} \
+  --clock-rate ${params.clock_rate} \
+  --clock-std-dev ${params.clock_std_dev} \
+  --date-confidence \
+  --date-inference ${params.date_inference} \
+  --output-node-data "branch_lengths.json" \
+  --divergence-units ${params.divergence_units} \
+  --root oldest
+  """
 }
 
 process ancestral {
 
-tag "Reconstructing ancestral sequences and mutations"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Reconstructing ancestral sequences and mutations"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple path(refine_tree), path(refine_bls), path(sequences)
+  input:
+  tuple path(refine_tree), path(refine_bls), path(sequences)
 
-output:
-path("nt_muts.json")
+  output:
+  path("nt_muts.json")
 
-"""
-augur ancestral \
---tree ${refine_tree} \
---alignment ${sequences} \
---output-node-data "nt_muts.json" \
---inference ${params.inference}
-"""
+  """
+  augur ancestral \
+  --tree ${refine_tree} \
+  --alignment ${sequences} \
+  --output-node-data "nt_muts.json" \
+  --inference ${params.inference}
+  """
 }
 
 process translate {
 
-tag "Translating to amino acids and producing individual alignments"
-publishDir "${params.work_dir}/results/", mode: 'copy'
+  tag "Translating to amino acids and producing individual alignments"
+  publishDir "${params.work_dir}/results/", mode: 'copy'
 
-input:
-tuple file(refine_tree), file(refine_bls), file(ancestral_nodes), file(reference)
+  input:
+  tuple file(refine_tree), file(refine_bls), file(ancestral_nodes), file(reference)
 
-output:
-file("aa_muts.json")
+  output:
+  file("aa_muts.json")
 
-"""
-augur translate \
---tree ${refine_tree} \
---ancestral-sequences ${ancestral_nodes} \
---reference-sequence ${reference} \
---output-node-data "aa_muts.json"
-"""
+  """
+  augur translate \
+  --tree ${refine_tree} \
+  --ancestral-sequences ${ancestral_nodes} \
+  --reference-sequence ${reference} \
+  --output-node-data "aa_muts.json"
+  """
 }
 
 process traits{
@@ -512,59 +512,59 @@ process tip_frequencies{
 
 process clusters {
 
-tag "Subsample SARS-CoV-2 genomic clusters at min probs of 0.8 & 0.9"
-publishDir "${params.work_dir}/results", mode: 'copy'
+  tag "Subsample SARS-CoV-2 genomic clusters at min probs of 0.8 & 0.9"
+  publishDir "${params.work_dir}/results", mode: 'copy'
 
-input:
-tuple file(refine_tree), file(refine_bls), file(order_tree)
+  input:
+  tuple file(refine_tree), file(refine_bls), file(order_tree)
 
-output:
-path "SARS-CoV-2_0.8_GenomicClusters.tsv", emit: genomicClusters_08
-path "SARS-CoV-2_0.8_ClustersSummary.tsv", optional: true 
-path "SARS-CoV-2_0.8_TransProbs.tsv"
-path "SARS-CoV-2_0.9_GenomicClusters.tsv", emit: genomicClusters_09
-path "SARS-CoV-2_0.9_ClustersSummary.tsv", optional: true 
-path "SARS-CoV-2_0.9_TransProbs.tsv"
+  output:
+  path "SARS-CoV-2_0.8_GenomicClusters.tsv", emit: genomicClusters_08
+  path "SARS-CoV-2_0.8_ClustersSummary.tsv", optional: true 
+  path "SARS-CoV-2_0.8_TransProbs.tsv"
+  path "SARS-CoV-2_0.9_GenomicClusters.tsv", emit: genomicClusters_09
+  path "SARS-CoV-2_0.9_ClustersSummary.tsv", optional: true 
+  path "SARS-CoV-2_0.9_TransProbs.tsv"
 
-script:
-"""
-Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
-"${refine_bls}" \
-"${order_tree}" \
-"${params.trans_probs_80}" \
-"${params.gen_clusts_80}" \
-"0.8" \
-"${params.new_cluster}" \
+  script:
+  """
+  Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
+  "${refine_bls}" \
+  "${order_tree}" \
+  "${params.trans_probs_80}" \
+  "${params.gen_clusts_80}" \
+  "0.8" \
+  "${params.new_cluster}" \
 
-Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
-"${refine_bls}" \
-"${order_tree}" \
-"${params.trans_probs_90}" \
-"${params.gen_clusts_90}" \
-"0.9" \
-"${params.new_cluster}"
-"""
+  Rscript ${projectDir}/bin/A3_subsam_cov2clusters_081021_141021.R "${refine_tree}" \
+  "${refine_bls}" \
+  "${order_tree}" \
+  "${params.trans_probs_90}" \
+  "${params.gen_clusts_90}" \
+  "0.9" \
+  "${params.new_cluster}"
+  """
 }
 
 process condense {
 
-tag "Collapse branches < 0.0000021, convert scale, & find min number of clusters with max edge length = 6"
-publishDir "${params.work_dir}/results", mode: 'copy'
+  tag "Collapse branches < 0.0000021, convert scale, & find min number of clusters with max edge length = 6"
+  publishDir "${params.work_dir}/results", mode: 'copy'
 
-input:
-file(order_tree)
+  input:
+  file(order_tree)
 
-output:
-path("tree_collapse_snp.nwk") 
-path("tc_cluster.tsv"), emit: tc_cluster
+  output:
+  path("tree_collapse_snp.nwk") 
+  path("tc_cluster.tsv"), emit: tc_cluster
 
 
-"""
-collapse-minimum-branch-length-scale-to-snps.py ${order_tree} > tree_collapse_snp.nwk 
+  """
+  collapse-minimum-branch-length-scale-to-snps.py ${order_tree} > tree_collapse_snp.nwk 
 
-TreeCluster.py -i tree_collapse_snp.nwk -o tc_cluster.tsv -t 6 -m max_clade
+  TreeCluster.py -i tree_collapse_snp.nwk -o tc_cluster.tsv -t 6 -m max_clade
 
-"""
+  """
 }
 
 process aggregate {

@@ -647,7 +647,7 @@ workflow {
   // export(aggregate.out.combine(refine.out.combine(traits.out.combine(ancestral.out.combine(translate.out)))))
 
   filtration(seq_ch.combine(meta_ch))
-  align(filtration.out.combine(ref_ch)) | percent | replace | dedup
+  align(filtration.out.combine(ref_ch)) | percent | dedup
   fasttree(dedup.out.sequences) | resolve
   branches(resolve.out.combine(dedup.out.sequences)) | round | collapse 
   repopulate(collapse.out.combine(dedup.out.names)) | order
